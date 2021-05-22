@@ -107,6 +107,16 @@ async function main() {
     },
     client,
   );
+  await insertNotification.run(
+    {
+      notification: {
+        user_id: 1,
+        payload: [{ num_frogs: 1002 }],
+        type: 'reminder',
+      },
+    },
+    client,
+  );
 
   const notifications = await thresholdFrogs.run({ numFrogs: 80 }, client);
 
