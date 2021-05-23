@@ -139,7 +139,26 @@ export interface IGetNotificationsQuery {
         types,
         {} as ParsedConfig,
       );
-      expect(typeDeclaration).toMatchSnapshot();
+      const expected = `/** 'InsertNotifications' parameters type */
+export interface IInsertNotificationsParams {
+  notification: {
+    payload: Json | null | void,
+    user_id: string | null | void,
+    type: string | null | void
+  };
+}
+
+/** 'InsertNotifications' return type */
+export type IInsertNotificationsResult = void;
+
+/** 'InsertNotifications' query type */
+export interface IInsertNotificationsQuery {
+  params: IInsertNotificationsParams;
+  result: IInsertNotificationsResult;
+}
+
+`;
+      expect(typeDeclaration).toEqual(expected);
     });
 
     test(`DeleteUsers by UUID (${mode})`, async () => {
