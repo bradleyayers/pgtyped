@@ -13,6 +13,7 @@ import {
   insertNotifications,
 } from './notifications/notifications';
 import {
+  findMatchingPayload,
   sendNotifications,
   thresholdFrogs,
 } from './notifications/notifications.queries';
@@ -72,7 +73,6 @@ async function main() {
     'jane.holmes@example.com',
     'andrewjackson@example.com',
   ]);
-
   await sendNotifications.run(
     {
       notifications: [
@@ -111,9 +111,25 @@ async function main() {
     {
       notification: {
         user_id: 1,
-        payload: [{ num_frogs: 1002 }],
+        payload: JSON.stringify([{ num_frogs: 1002 }]),
         type: 'reminder',
       },
+    },
+    client,
+  );
+  await sendNotifications.run(
+    {
+      notifications: [{
+        user_id: 1,
+        payload: [{ num_frogs: 1002 }],
+        type: 'reminder',
+      }],
+    },
+    client,
+  );
+  await findMatchingPayload.run(
+    {
+      payloads: [{ foo: 'foo' }, 1, [{ foo: 'foo' }]],
     },
     client,
   );

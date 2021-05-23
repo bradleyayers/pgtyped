@@ -1,5 +1,6 @@
 import {
   getTypes,
+  ParamPgTypes,
   ParamTransform,
   parseSQLFile,
   parseTypeScriptFile,
@@ -45,8 +46,6 @@ type ParsedQuery =
       ast: SQLQueryAST;
       mode: ProcessingMode.SQL;
     };
-
-type ParamPgTypes = { [name: string]: string | { [name: string]: string } };
 
 export async function queryToTypeDeclarations(
   parsedQuery: ParsedQuery,
@@ -205,6 +204,7 @@ type ITypedQuery =
   | {
       mode: 'sql';
       fileName: string;
+      paramPgTypes: ParamPgTypes | null;
       query: {
         name: string;
         ast: SQLQueryAST;
@@ -238,7 +238,7 @@ async function generateTypedecsFromFile(
     let typedQuery: ITypedQuery;
     if (mode === 'sql') {
       const sqlQueryAST = queryAST as SQLQueryAST;
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const { typeDeclaration, paramPgTypes } = await queryToTypeDeclarations(
         { ast: sqlQueryAST, mode: ProcessingMode.SQL },
         connection,
         types,
@@ -246,6 +246,7 @@ async function generateTypedecsFromFile(
       );
       typedQuery = {
         mode: 'sql' as const,
+        paramPgTypes,
         query: {
           name: camelCase(sqlQueryAST.name),
           ast: sqlQueryAST,
@@ -324,7 +325,10 @@ export async function generateDeclarationFile(
       .join('\n');
     declarationFileContents += `const ${
       typeDec.query.name
-    }IR: any = ${JSON.stringify(typeDec.query.ast)};\n\n`;
+    }IR: any = ${JSON.stringify({
+      ast: typeDec.query.ast,
+      paramPgTypes: typeDec.paramPgTypes,
+    })};\n\n`;
     declarationFileContents +=
       `/**\n` +
       ` * Query generated from SQL:\n` +

@@ -9,6 +9,7 @@ test('(SQL) no params', () => {
 
   const fileAST = parseSQLQuery(query);
   const parameters = {};
+  const paramPgTypes = {};
 
   const expectedResult = {
     query: 'SELECT id, name FROM users',
@@ -19,6 +20,7 @@ test('(SQL) no params', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -35,6 +37,11 @@ test('(SQL) two scalar params', () => {
   const parameters = {
     id: '123',
     age: 12,
+  };
+
+  const paramPgTypes = {
+    id: 'uuid',
+    age: 'int',
   };
 
   const expectedInterpolationResult = {
@@ -63,6 +70,7 @@ test('(SQL) two scalar params', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -78,6 +86,10 @@ test('(SQL) one param used twice', () => {
   const fileAST = parseSQLQuery(query);
   const parameters = {
     id: '123',
+  };
+
+  const paramPgTypes = {
+    id: 'uuid',
   };
 
   const expectedInterpolationResult = {
@@ -101,6 +113,50 @@ test('(SQL) one param used twice', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
+  );
+  const mappingResult = processSQLQueryAST(fileAST.queries[0]);
+
+  expect(interpolationResult).toEqual(expectedInterpolationResult);
+  expect(mappingResult).toEqual(expectedMappingResult);
+});
+
+test('(SQL) json param', () => {
+  const query = `
+  /* @name selectUsersAndParents */
+  SELECT id, name from users where payload = :payload;`;
+
+  const fileAST = parseSQLQuery(query);
+  const parameters = {
+    payload: [{ foo: 'foo' }],
+  };
+
+  const paramPgTypes = {
+    payload: 'json',
+  };
+
+  const expectedInterpolationResult = {
+    query: 'SELECT id, name from users where payload = $1',
+    mapping: [],
+    bindings: ['[{"foo":"foo"}]'],
+  };
+
+  const expectedMappingResult = {
+    query: 'SELECT id, name from users where payload = $1',
+    mapping: [
+      {
+        assignedIndex: 1,
+        name: 'payload',
+        type: ParamTransform.Scalar,
+      },
+    ],
+    bindings: [],
+  };
+
+  const interpolationResult = processSQLQueryAST(
+    fileAST.queries[0],
+    parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -119,6 +175,10 @@ test('(SQL) array param', () => {
 
   const parameters = {
     ages: [23, 27, 50],
+  };
+
+  const paramPgTypes = {
+    ages: 'int',
   };
 
   const expectedInterpolationResult = {
@@ -142,6 +202,7 @@ test('(SQL) array param', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -160,6 +221,10 @@ test('(SQL) array param used twice', () => {
 
   const parameters = {
     ages: [23, 27, 50],
+  };
+
+  const paramPgTypes = {
+    ages: 'int',
   };
 
   const expectedInterpolationResult = {
@@ -183,6 +248,53 @@ test('(SQL) array param used twice', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
+  );
+  const mappingResult = processSQLQueryAST(fileAST.queries[0]);
+
+  expect(interpolationResult).toEqual(expectedInterpolationResult);
+  expect(mappingResult).toEqual(expectedMappingResult);
+});
+
+test('(SQL) array param of jsonb', () => {
+  const query = `
+  /*
+    @name selectSomeUsers
+    @param payloads -> (...)
+  */
+  SELECT FROM users WHERE payload in :payloads;`;
+  const fileAST = parseSQLQuery(query);
+
+  const parameters = {
+    payloads: [1, [], [{ foo: 'foo' }]],
+  };
+
+  const paramPgTypes = {
+    payloads: 'jsonb',
+  };
+
+  const expectedInterpolationResult = {
+    query: 'SELECT FROM users WHERE payload in ($1,$2,$3)',
+    bindings: ['1', '[]', '[{"foo":"foo"}]'],
+    mapping: [],
+  };
+
+  const expectedMappingResult = {
+    query: 'SELECT FROM users WHERE payload in ($1)',
+    bindings: [],
+    mapping: [
+      {
+        name: 'payloads',
+        type: ParamTransform.Spread,
+        assignedIndex: 1,
+      },
+    ],
+  };
+
+  const interpolationResult = processSQLQueryAST(
+    fileAST.queries[0],
+    parameters as any, // TODO: remove as any
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -202,6 +314,11 @@ test('(SQL) array and scalar param', () => {
   const parameters = {
     ages: [23, 27, 50],
     userId: 'some-id',
+  };
+
+  const paramPgTypes = {
+    ages: 'int',
+    userId: 'uuid',
   };
 
   const expectedInterpolationResult = {
@@ -230,6 +347,7 @@ test('(SQL) array and scalar param', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -241,23 +359,33 @@ test('(SQL) pick param', () => {
   const query = `
   /*
     @name insertUsers
-    @param user -> (name, age)
+    @param user -> (name, age, payload)
   */
-  INSERT INTO users (name, age) VALUES :user RETURNING id;`;
+  INSERT INTO users (name, age, payload) VALUES :user RETURNING id;`;
   const fileAST = parseSQLQuery(query);
 
   const parameters = {
-    user: { name: 'Bob', age: 12 },
+    user: { name: 'Bob', age: 12, payload: [{ foo: 'foo' }] },
+  };
+
+  const paramPgTypes = {
+    user: {
+      name: 'text',
+      age: 'int',
+      payload: 'json',
+    },
   };
 
   const expectedInterpolationResult = {
-    query: 'INSERT INTO users (name, age) VALUES ($1,$2) RETURNING id',
-    bindings: ['Bob', 12],
+    query:
+      'INSERT INTO users (name, age, payload) VALUES ($1,$2,$3) RETURNING id',
+    bindings: ['Bob', 12, '[{"foo":"foo"}]'],
     mapping: [],
   };
 
   const expectedMappingResult = {
-    query: 'INSERT INTO users (name, age) VALUES ($1,$2) RETURNING id',
+    query:
+      'INSERT INTO users (name, age, payload) VALUES ($1,$2,$3) RETURNING id',
     bindings: [],
     mapping: [
       {
@@ -274,6 +402,11 @@ test('(SQL) pick param', () => {
             name: 'age',
             type: ParamTransform.Scalar,
           },
+          payload: {
+            assignedIndex: 3,
+            name: 'payload',
+            type: ParamTransform.Scalar,
+          },
         },
       },
     ],
@@ -281,7 +414,8 @@ test('(SQL) pick param', () => {
 
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
-    parameters,
+    parameters as any, // TODO: remove as any
+    paramPgTypes,
   );
   expect(interpolationResult).toEqual(expectedInterpolationResult);
 
@@ -302,6 +436,13 @@ test('(SQL) pick param used twice', () => {
     user: { name: 'Bob', age: 12 },
   };
 
+  const paramPgTypes = {
+    user: {
+      name: 'text',
+      age: 'int',
+    },
+  };
+
   const expectedInterpolationResult = {
     query: 'INSERT INTO users (name, age) VALUES ($1,$2), ($1,$2) RETURNING id',
     bindings: ['Bob', 12],
@@ -334,6 +475,7 @@ test('(SQL) pick param used twice', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   expect(interpolationResult).toEqual(expectedInterpolationResult);
 
@@ -345,21 +487,24 @@ test('(SQL) pickSpread param', () => {
   const query = `
   /*
     @name insertUsers
-    @param users -> ((name, age)...)
+    @param users -> ((name, age, payload)...)
   */
-  INSERT INTO users (name, age) VALUES :users RETURNING id;`;
+  INSERT INTO users (name, age, payload) VALUES :users RETURNING id;`;
   const fileAST = parseSQLQuery(query);
 
   const parameters = {
     users: [
-      { name: 'Bob', age: 12 },
-      { name: 'Tom', age: 22 },
+      { name: 'Bob', age: 12, payload: [{ foo: 'foo' }] },
+      { name: 'Tom', age: 22, payload: 42 },
     ],
   };
 
+  const paramPgTypes = { users: { name: 'text', age: 'int', payload: 'json' } };
+
   const expectedInterpolationResult = {
-    query: 'INSERT INTO users (name, age) VALUES ($1,$2),($3,$4) RETURNING id',
-    bindings: ['Bob', 12, 'Tom', 22],
+    query:
+      'INSERT INTO users (name, age, payload) VALUES ($1,$2,$3),($4,$5,$6) RETURNING id',
+    bindings: ['Bob', 12, '[{"foo":"foo"}]', 'Tom', 22, '42'],
     mapping: [],
   };
 
@@ -378,19 +523,26 @@ test('(SQL) pickSpread param', () => {
           type: ParamTransform.Scalar,
           assignedIndex: 2,
         },
+        payload: {
+          name: 'payload',
+          type: ParamTransform.Scalar,
+          assignedIndex: 3,
+        },
       },
     },
   ];
 
   const expectedMappingResult = {
-    query: 'INSERT INTO users (name, age) VALUES ($1,$2) RETURNING id',
+    query:
+      'INSERT INTO users (name, age, payload) VALUES ($1,$2,$3) RETURNING id',
     bindings: [],
     mapping: expectedMapping,
   };
 
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
-    parameters,
+    parameters as any, // TODO: remove as any
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 
@@ -412,6 +564,13 @@ test('(SQL) pickSpread param used twice', () => {
       { name: 'Bob', age: 12 },
       { name: 'Tom', age: 22 },
     ],
+  };
+
+  const paramPgTypes = {
+    users: {
+      name: 'text',
+      age: 'int',
+    },
   };
 
   const expectedInterpolationResult = {
@@ -449,6 +608,7 @@ test('(SQL) pickSpread param used twice', () => {
   const interpolationResult = processSQLQueryAST(
     fileAST.queries[0],
     parameters,
+    paramPgTypes,
   );
   const mappingResult = processSQLQueryAST(fileAST.queries[0]);
 

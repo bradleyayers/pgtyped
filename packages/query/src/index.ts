@@ -2,6 +2,7 @@ export { getTypes, startup, IParseError } from './actions';
 
 export {
   ParamTransform,
+  ParamPgTypes,
   IQueryParameters,
   IInterpolatedQuery,
 } from './preprocessor';

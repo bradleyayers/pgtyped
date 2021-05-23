@@ -5,7 +5,9 @@ import {
   IQueryParameters,
   IScalarArrayParam,
   IScalarParam,
+  ParamPgTypes,
   ParamTransform,
+  prepareValue,
   QueryParam,
   replaceIntervals,
   Scalar,
@@ -15,6 +17,7 @@ import {
 export const processSQLQueryAST = (
   query: SQLQueryAST,
   passedParams?: IQueryParameters,
+  paramPgTypes?: ParamPgTypes,
 ): IInterpolatedQuery => {
   const bindings: Scalar[] = [];
   const paramMapping: QueryParam[] = [];
@@ -33,9 +36,15 @@ export const processSQLQueryAST = (
       let sub: string;
       if (passedParams) {
         const paramValue = passedParams[usedParam.name];
+        const paramPgType = paramPgTypes?.[usedParam.name];
+        assert(typeof paramPgType != 'object');
+        // TODO: this cast it wrong, it could be a json[], but json isn't
+        // limited to being a Scalar.
         sub = (paramValue as Scalar[])
           .map((val) => {
-            bindings.push(val);
+            const preparedValue =
+              paramPgType != null ? prepareValue(val, paramPgType) : val;
+            bindings.push(preparedValue);
             return `$${i++}`;
           })
           .join(',');
@@ -74,8 +83,15 @@ export const processSQLQueryAST = (
             const paramValue = passedParams[
               usedParam.name
             ] as INestedParameters;
+            const paramPgType = paramPgTypes?.[usedParam.name];
+            assert(typeof paramPgType != 'string');
+            const pickKeyParamPgType = paramPgType?.[pickKey];
             const val = paramValue[pickKey];
-            bindings.push(val);
+            bindings.push(
+              pickKeyParamPgType != null
+                ? prepareValue(val, pickKeyParamPgType)
+                : val,
+            );
           }
           return `$${idx}`;
         })
@@ -102,13 +118,20 @@ export const processSQLQueryAST = (
       let sub: string;
       if (passedParams) {
         const passedParam = passedParams[usedParam.name] as INestedParameters[];
+        const paramPgType = paramPgTypes?.[usedParam.name];
+        assert(typeof paramPgType != 'string');
         sub = passedParam
           .map((entity) => {
             assert(usedParam.transform.type === TransformType.PickArraySpread);
             const ssub = usedParam.transform.keys
               .map((pickKey) => {
                 const val = entity[pickKey];
-                bindings.push(val);
+                const pickKeyParamPgType = paramPgType?.[pickKey];
+                bindings.push(
+                  pickKeyParamPgType != null
+                    ? prepareValue(val, pickKeyParamPgType)
+                    : val,
+                );
                 return `$${i++}`;
               })
               .join(',');
@@ -150,7 +173,13 @@ export const processSQLQueryAST = (
     const assignedIndex = i++;
     if (passedParams) {
       const paramValue = passedParams[usedParam.name] as Scalar;
-      bindings.push(paramValue);
+      const paramPgType = paramPgTypes?.[usedParam.name];
+      assert(typeof paramPgType != 'object');
+      bindings.push(
+        paramPgType != null
+          ? prepareValue(paramValue, paramPgType)
+          : paramValue,
+      );
     } else {
       paramMapping.push({
         name: usedParam.name,

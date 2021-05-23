@@ -79,3 +79,17 @@ export function replaceIntervals(
   }
   return result;
 }
+
+export function prepareValue(value: Scalar, pgTypeName: string) {
+  switch (pgTypeName) {
+    case 'json':
+    case 'jsonb':
+      return JSON.stringify(value);
+    default:
+      return value;
+  }
+}
+
+export type ParamPgTypes = {
+  [name: string]: string | { [name: string]: string };
+};

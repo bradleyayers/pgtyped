@@ -19,3 +19,10 @@ FROM notifications n
 INNER JOIN users u on n.user_id = u.id
 WHERE CAST (n.payload->'num_frogs' AS int) > :numFrogs;
 
+/*
+  @name FindMatchingPayload
+  @param payloads -> (...)
+*/
+SELECT *
+  FROM notifications
+ WHERE payload IN :payloads;

@@ -2,7 +2,7 @@ import { processTSQueryAST } from './preprocessor-ts';
 import { processSQLQueryAST } from './preprocessor-sql';
 import { Query as QueryAST } from './loader/sql';
 import { parseTSQuery, TSQueryAST } from './loader/typescript';
-import { parseTypeScriptFile } from './index';
+import { ParamPgTypes, parseTypeScriptFile } from './index';
 
 export interface IDatabaseConnection {
   query: (query: string, bindings: any[]) => Promise<{ rows: any[] }>;
@@ -42,6 +42,11 @@ const sql = <TTypePair extends ITypePair>(
   return new TaggedQuery<TTypePair>(query);
 };
 
+interface QueryIR {
+  ast: QueryAST;
+  paramPgTypes: ParamPgTypes;
+}
+
 /* Used for pure SQL */
 export class PreparedQuery<TParamType, TResultType> {
   public run: (
@@ -51,12 +56,13 @@ export class PreparedQuery<TParamType, TResultType> {
 
   private readonly query: QueryAST;
 
-  constructor(query: QueryAST) {
-    this.query = query;
+  constructor({ ast, paramPgTypes }: QueryIR) {
+    this.query = ast;
     this.run = async (params, connection) => {
       const { query: processedQuery, bindings } = processSQLQueryAST(
         this.query,
         params as any,
+        paramPgTypes,
       );
       const result = await connection.query(processedQuery, bindings);
       return result.rows;
