@@ -62,7 +62,7 @@ export async function queryToTypeDeclarations(
     queryData = processSQLQueryAST(parsedQuery.ast);
   }
 
-  const typeData = await getTypes(queryData, queryName, connection);
+  const typeData = await getTypes(queryData, connection);
   const interfaceName = pascalCase(queryName);
 
   if ('errorCode' in typeData) {
