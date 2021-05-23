@@ -51,7 +51,7 @@ export async function queryToTypeDeclarations(
   connection: any,
   types: TypeAllocator,
   config: ParsedConfig,
-): Promise<string> {
+): Promise<{ typeDeclaration: string }> {
   let queryData;
   let queryName;
   if (parsedQuery.mode === ProcessingMode.TS) {
@@ -78,7 +78,9 @@ export async function queryToTypeDeclarations(
     );
     const resultErrorComment = `/** Query '${queryName}' is invalid, so its result is assigned type 'never' */\n`;
     const paramErrorComment = `/** Query '${queryName}' is invalid, so its parameters are assigned type 'never' */\n`;
-    return `${resultErrorComment}${returnInterface}${paramErrorComment}${paramInterface}`;
+    return {
+      typeDeclaration: `${resultErrorComment}${returnInterface}${paramErrorComment}${paramInterface}`,
+    };
   }
 
   const { returnTypes, paramMetadata } = typeData;
@@ -165,9 +167,13 @@ export async function queryToTypeDeclarations(
       { fieldName: 'result', fieldType: resultInterfaceName },
     ]);
 
-  return [paramTypesInterface, returnTypesInterface, typePairInterface].join(
-    '',
-  );
+  return {
+    typeDeclaration: [
+      paramTypesInterface,
+      returnTypesInterface,
+      typePairInterface,
+    ].join(''),
+  };
 }
 
 type ITypedQuery =
@@ -216,7 +222,7 @@ async function generateTypedecsFromFile(
     let typedQuery: ITypedQuery;
     if (mode === 'sql') {
       const sqlQueryAST = queryAST as SQLQueryAST;
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         { ast: sqlQueryAST, mode: ProcessingMode.SQL },
         connection,
         types,
@@ -231,11 +237,11 @@ async function generateTypedecsFromFile(
           returnTypeAlias: `I${pascalCase(sqlQueryAST.name)}Result`,
         },
         fileName,
-        typeDeclaration: result,
+        typeDeclaration,
       };
     } else {
       const tsQueryAST = queryAST as TSQueryAST;
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         {
           ast: tsQueryAST,
           mode: ProcessingMode.TS,
@@ -251,7 +257,7 @@ async function generateTypedecsFromFile(
           name: tsQueryAST.name,
           ast: tsQueryAST,
         },
-        typeDeclaration: result,
+        typeDeclaration,
       };
     }
     results.push(typedQuery);

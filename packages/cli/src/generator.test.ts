@@ -59,7 +59,7 @@ describe('query-to-interface translation', () => {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -88,7 +88,7 @@ export interface IGetNotificationsQuery {
   params: IGetNotificationsParams;
   result: IGetNotificationsResult;
 }\n\n`;
-      expect(result).toEqual(expected);
+      expect(typeDeclaration).toEqual(expected);
     });
 
     test(`Insert notification query (${mode})`, async () => {
@@ -133,13 +133,13 @@ export interface IGetNotificationsQuery {
       };
       const types = new TypeAllocator(DefaultTypeMapping);
       getTypesMocked.mockResolvedValue(mockTypes);
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
         {} as ParsedConfig,
       );
-      expect(result).toMatchSnapshot();
+      expect(typeDeclaration).toMatchSnapshot();
     });
 
     test(`DeleteUsers by UUID (${mode})`, async () => {
@@ -189,7 +189,7 @@ export interface IGetNotificationsQuery {
       };
       const types = new TypeAllocator(DefaultTypeMapping);
       getTypesMocked.mockResolvedValue(mockTypes);
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -215,7 +215,7 @@ export interface IDeleteUsersQuery {
 }
 
 `;
-      expect(result).toEqual(expected);
+      expect(typeDeclaration).toEqual(expected);
     });
 
     test(`TypeMapping and declarations camelCase (${mode})`, async () => {
@@ -258,7 +258,7 @@ export interface IDeleteUsersQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -287,7 +287,7 @@ export interface IGetNotificationsQuery {
   params: IGetNotificationsParams;
   result: IGetNotificationsResult;
 }\n\n`;
-      expect(result).toEqual(expected);
+      expect(typeDeclaration).toEqual(expected);
     });
 
     test(`readonly array params (${mode})`, async () => {
@@ -333,7 +333,7 @@ export interface IGetNotificationsQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -362,7 +362,7 @@ export interface IGetNotificationsQuery {
   params: IGetNotificationsParams;
   result: IGetNotificationsResult;
 }\n\n`;
-      expect(result).toEqual(expected);
+      expect(typeDeclaration).toEqual(expected);
     });
 
     test(`Columns without nullable info should be nullable (${mode})`, async () => {
@@ -404,7 +404,7 @@ export interface IGetNotificationsQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const result = await queryToTypeDeclarations(
+      const { typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -433,7 +433,7 @@ export interface IGetNotificationsQuery {
   params: IGetNotificationsParams;
   result: IGetNotificationsResult;
 }\n\n`;
-      expect(result).toEqual(expected);
+      expect(typeDeclaration).toEqual(expected);
     });
   });
 });
