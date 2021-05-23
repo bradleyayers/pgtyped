@@ -46,12 +46,17 @@ type ParsedQuery =
       mode: ProcessingMode.SQL;
     };
 
+type ParamPgTypes = { [name: string]: string | { [name: string]: string } };
+
 export async function queryToTypeDeclarations(
   parsedQuery: ParsedQuery,
   connection: any,
   types: TypeAllocator,
   config: ParsedConfig,
-): Promise<{ typeDeclaration: string }> {
+): Promise<{
+  typeDeclaration: string;
+  paramPgTypes: ParamPgTypes | null;
+}> {
   let queryData;
   let queryName;
   if (parsedQuery.mode === ProcessingMode.TS) {
@@ -80,6 +85,7 @@ export async function queryToTypeDeclarations(
     const paramErrorComment = `/** Query '${queryName}' is invalid, so its parameters are assigned type 'never' */\n`;
     return {
       typeDeclaration: `${resultErrorComment}${returnInterface}${paramErrorComment}${paramInterface}`,
+      paramPgTypes: null,
     };
   }
 
@@ -87,6 +93,7 @@ export async function queryToTypeDeclarations(
 
   const returnFieldTypes: IField[] = [];
   const paramFieldTypes: IField[] = [];
+  const paramPgTypes: ParamPgTypes = {};
 
   returnTypes.forEach(({ returnName, type, nullable }) => {
     let tsTypeName = types.use(type);
@@ -121,11 +128,19 @@ export async function queryToTypeDeclarations(
         fieldName: param.name,
         fieldType: isArray ? `readonly (${tsTypeName})[]` : tsTypeName,
       });
+
+      paramPgTypes[param.name] =
+        typeof pgTypeName === 'string' ? pgTypeName : pgTypeName.name;
     } else {
       const isArray = param.type === ParamTransform.PickSpread;
+      const paramPgType: { [name: string]: string } = {};
+      paramPgTypes[param.name] = paramPgType;
       let fieldType = Object.values(param.dict)
         .map((p) => {
-          const paramType = types.use(params[p.assignedIndex - 1]);
+          const pgTypeName = params[p.assignedIndex - 1];
+          const paramType = types.use(pgTypeName);
+          paramPgType[p.name] =
+            typeof pgTypeName === 'string' ? pgTypeName : pgTypeName.name;
           return `    ${p.name}: ${paramType} | null | void`;
         })
         .join(',\n');
@@ -173,6 +188,7 @@ export async function queryToTypeDeclarations(
       returnTypesInterface,
       typePairInterface,
     ].join(''),
+    paramPgTypes,
   };
 }
 

@@ -59,7 +59,7 @@ describe('query-to-interface translation', () => {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const { paramPgTypes, typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -89,6 +89,9 @@ export interface IGetNotificationsQuery {
   result: IGetNotificationsResult;
 }\n\n`;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        userId: 'uuid',
+      });
     });
 
     test(`Insert notification query (${mode})`, async () => {
@@ -133,7 +136,7 @@ export interface IGetNotificationsQuery {
       };
       const types = new TypeAllocator(DefaultTypeMapping);
       getTypesMocked.mockResolvedValue(mockTypes);
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const { paramPgTypes, typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -159,6 +162,13 @@ export interface IInsertNotificationsQuery {
 
 `;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        notification: {
+          payload: 'json',
+          user_id: 'uuid',
+          type: 'text',
+        },
+      });
     });
 
     test(`DeleteUsers by UUID (${mode})`, async () => {
@@ -213,7 +223,7 @@ export interface IInsertNotificationsQuery {
       };
       const types = new TypeAllocator(DefaultTypeMapping);
       getTypesMocked.mockResolvedValue(mockTypes);
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const { paramPgTypes, typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -241,6 +251,11 @@ export interface IDeleteUsersQuery {
 
 `;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        userName: 'text',
+        userId: 'uuid',
+        userNote: 'text',
+      });
     });
 
     test(`TypeMapping and declarations camelCase (${mode})`, async () => {
@@ -283,7 +298,10 @@ export interface IDeleteUsersQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const {
+        paramPgTypes,
+        typeDeclaration,
+      } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -313,6 +331,9 @@ export interface IGetNotificationsQuery {
   result: IGetNotificationsResult;
 }\n\n`;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        userId: 'uuid',
+      });
     });
 
     test(`readonly array params (${mode})`, async () => {
@@ -358,7 +379,10 @@ export interface IGetNotificationsQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const {
+        paramPgTypes,
+        typeDeclaration,
+      } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -388,6 +412,9 @@ export interface IGetNotificationsQuery {
   result: IGetNotificationsResult;
 }\n\n`;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        userIds: 'uuid',
+      });
     });
 
     test(`Columns without nullable info should be nullable (${mode})`, async () => {
@@ -429,7 +456,7 @@ export interface IGetNotificationsQuery {
       const types = new TypeAllocator(DefaultTypeMapping);
       // Test out imports
       types.use({ name: 'PreparedQuery', from: '@pgtyped/query' });
-      const { typeDeclaration } = await queryToTypeDeclarations(
+      const { paramPgTypes, typeDeclaration } = await queryToTypeDeclarations(
         parsedQuery(mode, queryString),
         null,
         types,
@@ -459,6 +486,9 @@ export interface IGetNotificationsQuery {
   result: IGetNotificationsResult;
 }\n\n`;
       expect(typeDeclaration).toEqual(expected);
+      expect(paramPgTypes).toEqual({
+        userId: 'uuid',
+      });
     });
   });
 });
